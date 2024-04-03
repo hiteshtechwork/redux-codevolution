@@ -1,21 +1,21 @@
 const redux = require("redux");
-const thunkMiddleware = require("redux-thunk");
+const { createLogger } = require("redux-logger");
+const thunkMiddleware = require("redux-thunk").default;
 const axios = require("axios");
-const reduxLogger = require("redux-logger");
-const logger = reduxLogger.createLogger();
 
 const createStore = redux.createStore;
 const applyMiddleware = redux.applyMiddleware;
-
-const FETCH_USERS_REQUEST = "FETCH_USERS_REQUEST";
-const FETCH_USERS_SUCCESS = "FETCH_USERS_SUCCESS";
-const FETCH_USERS_FAILURE = "FETCH_USERS_FAILURE";
 
 const initialState = {
   loading: false,
   users: [],
   error: "",
 };
+
+const FETCH_USERS_REQUEST = "FETCH_USERS_REQUEST";
+const FETCH_USERS_SUCCESS = "FETCH_USERS_SUCCESS";
+const FETCH_USERS_FAILURE = "FETCH_USERS_FAILURE";
+
 const fetchUsersRequest = () => {
   return {
     type: FETCH_USERS_REQUEST,
@@ -45,14 +45,14 @@ const reducer = (state = initialState, action) => {
       };
     case FETCH_USERS_SUCCESS:
       return {
-        // ...state,
+        ...state,
         loading: false,
         users: action.payload,
         error: "",
       };
     case FETCH_USERS_FAILURE:
       return {
-        // ...state,
+        ...state,
         loading: false,
         users: [],
         error: action.payload,
@@ -62,33 +62,42 @@ const reducer = (state = initialState, action) => {
   }
 };
 
-// action creator
-// action creator creates an action , but thunk middleware brings the ability for an action creator to return a function instead of an action object.
-//
-
 const fetchUsers = () => {
-  // this function does not needs to be pure , it is allowed to have side effects , like async api calls,
   return function (dispatch) {
-    dispatch(fetchUsersRequest);
+    dispatch(fetchUsersRequest());
     axios
       .get("https://jsonplaceholder.typicode.com/users")
       .then((response) => {
-        const users = response.data.map((user) => {
-          return user.id;
-        });
-
-        dispatch(fetchUsersSuccess(users));
+        const users = response.data;
+        dispatch(
+          fetchUsersSuccess(
+            users.map((user) => {
+              return user.id;
+            })
+          )
+        );
       })
       .catch((error) => {
-        dispatch(fetchUsersFailure(error));
+        console.log(error.message);
+        dispatch(fetchUsersFailure(error.message));
       });
   };
 };
 
-const store = createStore(reducer, applyMiddleware(thunkMiddleware.default));
+// Create logger middleware
+const loggerMiddleware = createLogger();
+
+const store = createStore(
+  reducer,
+  initialState,
+  applyMiddleware(thunkMiddleware, loggerMiddleware)
+); // Apply thunk and logger middleware
 
 store.subscribe(() => {
   console.log(store.getState());
 });
-
-store.dispatch(fetchUsers());
+try {
+  store.dispatch(fetchUsers()); // Call fetchUsers as a function
+} catch (error) {
+  console.log(error);
+}
